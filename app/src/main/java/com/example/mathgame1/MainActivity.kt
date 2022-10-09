@@ -1,28 +1,37 @@
 package com.example.mathgame1
 
+import android.content.Intent
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.annotation.RequiresApi
 import kotlin.random.Random
 
     class MainActivity : AppCompatActivity() {
 
-    //variables
-    lateinit var button1: Button
-    lateinit var button2: Button
-    lateinit var button3: Button
-    lateinit var button4: Button
-
+    //lateinit variables
     lateinit var buttons: Array<Button>
-
     lateinit var resultTextView: TextView
+    lateinit var validationTextView: TextView
+    lateinit var timerProgressBar: ProgressBar
 
+    //variables
     var firstButtonPressed = false
     var firstValue = 0
     var secondValue = 0
+    var currentScore = 0
 
+    //value
+    val maxTimeInMillis = 20000L
+    val minTimeInMillis = 0L
+    val intervalInMillis = 10L
+
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -40,18 +49,46 @@ import kotlin.random.Random
             button.setOnClickListener()
             {
                 view : View ->
-                checkQuestion(view)
+                checkAnswer(view)
             }
         }
 
         resultTextView = findViewById(R.id.resultTextView)
+        validationTextView = findViewById(R.id.validationTextView)
+        timerProgressBar = findViewById(R.id.timerProgressBar)
+        timerProgressBar.max = (maxTimeInMillis/1000).toInt()
+        timerProgressBar.min = (minTimeInMillis/1000).toInt()
 
         //do generateQuestion() function
         generateQuestion()
+
+        val timer = object : CountDownTimer(maxTimeInMillis, intervalInMillis)
+        {
+            override fun onTick(millisUntilFinished: Long) {
+                timerProgressBar.progress = (millisUntilFinished/1000).toInt()
+            }
+
+            override fun onFinish() {
+                for (button in buttons) {
+                    button.isEnabled = false
+                }
+                resultTextView.text = ""
+
+                //move to EndScreen
+                val intent = Intent(this@MainActivity, EndScreen::class.java)
+                intent.putExtra("YourScore", currentScore)
+                startActivity(intent)
+            }
+        }
+
+        timer.start()
     }
         //generate question on load
-    fun generateQuestion()
+    private fun generateQuestion()
     {
+        for (button in buttons)
+            button.isEnabled = true
+
         //refresh value
         firstButtonPressed = false
         firstValue = 0
@@ -62,30 +99,30 @@ import kotlin.random.Random
 
         //random generator stuff
         var result      = randomGenerator.nextInt(10, 20)
-        var firstCorrectValue  = randomGenerator.nextInt(1, result-1)
-        var secondCorrectValue = result - firstCorrectValue
+        var groupOneValue1 = randomGenerator.nextInt(1, result-1)
+        var groupOneValue2 = result - groupOneValue1
 
         resultTextView.text = result.toString()
 
-        var firstRandomValue = randomGenerator.nextInt(1, result-1)
-        var secondRandomValue = randomGenerator.nextInt(1, result-1)
+        var groupTwoValue1 = randomGenerator.nextInt(1, result-1)
+        var groupTwoValue2 = result - groupTwoValue1
 
 
         var arrayInt = arrayOf(0, 1, 2, 3)
         arrayInt.shuffle(randomGenerator)
 
         //correct values
-        buttons[arrayInt[0]].text = firstCorrectValue.toString()
-        buttons[arrayInt[1]].text = secondCorrectValue.toString()
+        buttons[arrayInt[0]].text = groupOneValue1.toString()
+        buttons[arrayInt[1]].text = groupOneValue2.toString()
 
         //random (incorrect) values
-        buttons[arrayInt[2]].text = firstRandomValue.toString()
-        buttons[arrayInt[3]].text = secondRandomValue.toString()
+        buttons[arrayInt[2]].text = groupTwoValue1.toString()
+        buttons[arrayInt[3]].text = groupTwoValue2.toString()
 
         for (x in arrayInt) println(x)
     }
 
-    private fun checkQuestion(view : View)
+    private fun checkAnswer(view : View)
     {
         var buttonPressed = view as Button
 
@@ -96,9 +133,19 @@ import kotlin.random.Random
         {
             secondValue = buttonPressed.text.toString().toInt()
             var result = firstValue + secondValue
-            println(result)
 
-            generateQuestion()
+            //validate answer
+            val answer = resultTextView.text.toString().toInt()
+            if (result == answer)
+            {
+                validationTextView.text = ("Correct!")
+                currentScore = currentScore + 1
+                generateQuestion()
+            }
+            else {
+                validationTextView.text = ("Wrong...")
+                generateQuestion()
+            }
         }
 
         //check the first button value
@@ -106,6 +153,7 @@ import kotlin.random.Random
         {
             firstValue = buttonPressed.text.toString().toInt()
             firstButtonPressed = true
+            buttonPressed.isEnabled = false
         }
     }
 }
